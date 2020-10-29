@@ -15,7 +15,7 @@
 #define MAX_LOADSTRING 100
 #define WM_NETWORK (WM_USER+1)
 #define SERVER_PORT 25000
-#define SERVER_IP L"127.0.0.1"
+#define SERVER_IP L"192.168.10.35"
 #define DUMMY_CNT 100
 #define RAND_RANGE 1000
 
@@ -400,7 +400,7 @@ void RecvEvent(SOCKET socket)
         
         int deqRtn = g_Dummy[searchIndex].recvRingBuffer.Dequeue((char*)&drawPacket, sizeof(DrawPacket));
 
-        DrawLine(drawPacket.startX, drawPacket.startY, drawPacket.endX, drawPacket.endY);
+        //DrawLine(drawPacket.startX, drawPacket.startY, drawPacket.endX, drawPacket.endY);
     }
 
 }
