@@ -5,7 +5,7 @@ class RingBuffer
 public:
 	enum
 	{
-		RING_BUFFER_SIZE = 19
+		RING_BUFFER_SIZE = 10000
 	};
 
 public:

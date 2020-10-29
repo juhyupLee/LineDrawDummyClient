@@ -11,11 +11,13 @@
 #include <iostream>
 #include "RingBuffer.h"
 #include "SocketLog.h"
+#include <Windows.h>
 
 #define MAX_LOADSTRING 100
 #define WM_NETWORK (WM_USER+1)
 #define SERVER_PORT 25000
-#define SERVER_IP L"192.168.10.35"
+#define SERVER_IP L"192.168.10.58"
+//#define SERVER_IP L"192.168.10.35"
 #define DUMMY_CNT 100
 #define RAND_RANGE 1000
 
@@ -73,6 +75,8 @@ Header g_Header;
 DrawPacket g_DrawPacket;
 
 WCHAR g_DebugString[128];
+
+HDC g_HDC;
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
                      _In_ LPWSTR    lpCmdLine,
@@ -99,6 +103,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     MSG msg;
 
     Network_Init(g_hWnd);
+    g_HDC = GetDC(g_hWnd);
+    long long curTime = GetTickCount64();
+
     // 기본 메시지 루프입니다:
     while (GetMessage(&msg, nullptr, 0, 0))
     {
@@ -107,10 +114,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-
         DummyControl();
-        Sleep(100);
 
+        /*if (GetTickCount64() - curTime > 500)
+        {
+            curTime = GetTickCount64();
+            DummyControl();
+        }*/
     }
 
     return (int) msg.wParam;
@@ -313,7 +323,6 @@ void SelectProcess(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 break;
             }
         }
-        PostQuitMessage(0);
         break;
     }
 }
@@ -342,7 +351,7 @@ void SendEvent(SOCKET socket)
         }
     }
 
-    char buffer[1000];
+    char buffer[10000];
 
     while (g_Dummy[dummyIDX].sendRingBuffer.GetUsedSize() != 0)
     {
@@ -369,48 +378,71 @@ void RecvEvent(SOCKET socket)
             break;
         }
     }
-
-    int enQDirectSize = g_Dummy[searchIndex].recvRingBuffer.GetDirectEnqueueSize();
-
-    int recvRtn = recv(g_Dummy[searchIndex].socket,g_Dummy[searchIndex].recvRingBuffer.GetRearBufferPtr(), enQDirectSize, 0);
+    char buffer[30000];
+     
+    int recvRtn = recv(g_Dummy[searchIndex].socket, buffer, 30000, 0);
 
     if (recvRtn <= 0)
     {
         ERROR_LOG(L"Recv() Error", g_hWnd);
         Disconnect(&g_Dummy[searchIndex]);
     }
-    g_Dummy[searchIndex].recvRingBuffer.MoveRear(recvRtn);
 
-    while (true)
-    {
-        Header header;
-        DrawPacket drawPacket;
+    //int searchIndex = 0;
 
-        if (g_Dummy[searchIndex].recvRingBuffer.GetUsedSize() < sizeof(header))
-        {
-            break;
-        }
-        int peekRtn = g_Dummy[searchIndex].recvRingBuffer.Peek((char*)&header, sizeof(header));
+    //for (int i = 0; i < DUMMY_CNT; i++)
+    //{
+    //    if (socket == g_Dummy[i].socket)
+    //    {
+    //        searchIndex = i;
+    //        break;
+    //    }
+    //}
 
-        if (g_Dummy[searchIndex].recvRingBuffer.GetUsedSize() < sizeof(header)+header.len)
-        {
-            break;
-        }
-        g_Dummy[searchIndex].recvRingBuffer.MoveFront(sizeof(header));
-        
-        int deqRtn = g_Dummy[searchIndex].recvRingBuffer.Dequeue((char*)&drawPacket, sizeof(DrawPacket));
+    //int enQDirectSize = g_Dummy[searchIndex].recvRingBuffer.GetDirectEnqueueSize();
 
-        //DrawLine(drawPacket.startX, drawPacket.startY, drawPacket.endX, drawPacket.endY);
-    }
+    //int recvRtn = recv(g_Dummy[searchIndex].socket,g_Dummy[searchIndex].recvRingBuffer.GetRearBufferPtr(), enQDirectSize, 0);
+
+    //if (recvRtn <= 0)
+    //{
+    //    ERROR_LOG(L"Recv() Error", g_hWnd);
+    //    Disconnect(&g_Dummy[searchIndex]);
+    //}
+
+    ////g_Dummy[searchIndex].recvRingBuffer.MoveRear(recvRtn);
+
+    //g_Dummy[searchIndex].recvRingBuffer.ClearBuffer();
+
+    //while (true)
+    //{
+    //    Header header;
+    //    DrawPacket drawPacket;
+
+    //    if (g_Dummy[searchIndex].recvRingBuffer.GetUsedSize() < sizeof(header))
+    //    {
+    //        break;
+    //    }
+    //    int peekRtn = g_Dummy[searchIndex].recvRingBuffer.Peek((char*)&header, sizeof(header));
+
+    //    if (g_Dummy[searchIndex].recvRingBuffer.GetUsedSize() < sizeof(header)+header.len)
+    //    {
+    //        break;
+    //    }
+    //    g_Dummy[searchIndex].recvRingBuffer.MoveFront(sizeof(header));
+    //    
+    //    int deqRtn = g_Dummy[searchIndex].recvRingBuffer.Dequeue((char*)&drawPacket, sizeof(DrawPacket));
+
+    //    //DrawLine(drawPacket.startX, drawPacket.startY, drawPacket.endX, drawPacket.endY);
+    //}
 
 }
 
 void DrawLine(int startX, int startY, int endX, int endY)
 {
-    HDC hdc = GetDC(g_hWnd);
-    MoveToEx(hdc, startX, startY, NULL);
-    LineTo(hdc, endX, endY);
-    ReleaseDC(g_hWnd, hdc);
+    //HDC hdc = GetDC(g_hWnd);
+    MoveToEx(g_HDC, startX, startY, NULL);
+    LineTo(g_HDC, endX, endY);
+   // ReleaseDC(g_hWnd, hdc);
 }
 
 void Disconnect(Dummy* dummy)
@@ -447,6 +479,7 @@ void DummyControl()
             drawPacket.endY = rand() % RAND_RANGE;
 
             SendPacket(&header, (char*)&drawPacket, sizeof(DrawPacket), &g_Dummy[i]);
+          
             
         }
     }
